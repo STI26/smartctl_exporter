@@ -16,7 +16,7 @@ var (
 	results    = sync.Map{}
 	collectors = map[string]*prometheus.GaugeVec{}
 
-	_flags = Flags{}
+	flags = Flags{}
 
 	AppName   = "smartctl_exporter"
 	Version   = ""
@@ -70,9 +70,9 @@ func WithMetrics(handler http.Handler) http.HandlerFunc {
 }
 
 func main() {
-	_flags.init()
+	flags.init()
 
-	if *_flags.Version {
+	if *flags.Version {
 		fmt.Printf(
 			"%s\n"+
 				"Version: \t%s\n"+
@@ -81,6 +81,11 @@ func main() {
 			Version,
 			BuildDate)
 		return
+	}
+
+	serverTLSConf, err := certsetup()
+	if err != nil {
+		panic(err)
 	}
 
 	devices = GetDevices()
@@ -104,14 +109,24 @@ func main() {
 
 	hf := WithMetrics(promHandler)
 
-	if !*_flags.disableAuth {
+	if !*flags.disableAuth {
 		hf = BasicAuth(hf)
 	}
 
-	http.HandleFunc(*_flags.Path, hf)
+	mux := http.NewServeMux()
+	mux.HandleFunc(*flags.Path, hf)
 
-	addr := fmt.Sprintf("%s:%d", *_flags.Address, *_flags.Port)
+	addr := fmt.Sprintf("%s:%d", *flags.Address, *flags.Port)
+
+	server := http.Server{
+		Addr:    addr,
+		Handler: mux,
+	}
+
+	if *flags.tls {
+		server.TLSConfig = serverTLSConf
+	}
 
 	log.Printf("Listen: %s\n", addr)
-	log.Fatal(http.ListenAndServe(addr, nil))
+	log.Fatal(server.ListenAndServeTLS("", ""))
 }

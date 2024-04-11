@@ -1,7 +1,7 @@
 ##
-## Build
+## Build bin
 ##
-FROM golang:1.18-alpine AS build
+FROM golang:1.22-alpine AS build
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ RUN go mod verify
 RUN go build -o /go/bin/smartctl_exporter -ldflags "-w -s -X main.Version=${VERSION} -X main.BuildDate=${BUILD_DATE}"
 
 ##
-## Deploy
+## Build finish image
 ##
 FROM alpine:latest
 
